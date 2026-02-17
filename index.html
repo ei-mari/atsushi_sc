@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="manifest" href="./manifest.json" />
+  <title>英作文カード</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif; }
+    body { margin:0; background:#f6f7f9; color:#111; }
+    header { padding:14px 14px 10px; background:#fff; border-bottom:1px solid #e6e8ee; position:sticky; top:0; z-index:10;}
+    h1 { margin:0; font-size:18px; }
+    .sub { margin:6px 0 0; color:#666; font-size:12px; }
+    .screen { display:none; }
+    .screen.show { display:block; }
+
+    .picker { padding:12px 14px 90px; }
+    .search { width:100%; box-sizing:border-box; padding:10px 12px; border-radius:12px; border:1px solid #d7dbe6; }
+    .sectionTitle { margin:14px 0 8px; font-size:12px; color:#666; }
+    .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
+    .themeBtn { border:1px solid #e6e8ee; background:#fff; border-radius:16px; padding:12px; cursor:pointer; text-align:left; }
+    .themeTitle { font-size:14px; margin:0 0 6px; }
+    .themeMeta { font-size:12px; color:#666; margin:0; }
+
+    .toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; }
+    .backBtn { border:1px solid #d7dbe6; background:#fff; border-radius:12px; padding:8px 10px; cursor:pointer; font-size:13px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; }
+    .tab { border:1px solid #d7dbe6; background:#fff; padding:8px 10px; border-radius:10px; font-size:13px; cursor:pointer; }
+    .tab.active { background:#111; color:#fff; border-color:#111; }
+
+    main { padding:12px 14px 90px; }
+    table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #e6e8ee; border-radius:14px; overflow:hidden; }
+    th, td { padding:10px; border-bottom:1px solid #eef0f6; vertical-align:top; }
+    th { font-size:12px; text-align:left; background:#fbfcff; color:#444; }
+    tr:last-child td { border-bottom:none; }
+    .jpCell { cursor:pointer; }
+    .audioBtn { border:1px solid #d7dbe6; background:#fff; padding:7px 10px; border-radius:10px; cursor:pointer; font-size:13px; }
+    .rowTop { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .badge { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid #e6e8ee; color:#444; background:#fff; }
+    .jp { font-size:14px; line-height:1.4; }
+
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; padding:16px; z-index:20; }
+    .overlay.show { display:flex; }
+    .modal { width:min(680px, 100%); background:#fff; border-radius:18px; overflow:hidden; border:1px solid #e6e8ee; }
+    .modalHead { padding:12px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eef0f6; gap:10px; }
+    .leftBadges { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .closeBtn { border:1px solid #d7dbe6; background:#fff; border-radius:10px; padding:7px 10px; cursor:pointer; }
+    .statusBtns { display:flex; gap:8px; flex-wrap:wrap; }
+    .sbtn { border:1px solid #d7dbe6; background:#fff; border-radius:999px; padding:7px 10px; cursor:pointer; font-size:12px; }
+    .sbtn.active { background:#111; color:#fff; border-color:#111; }
+    .cardArea { padding:18px 14px 16px; cursor:pointer; }
+    .big, .en { font-size:18px; line-height:1.45; margin:0; }
+    .en { margin:0 0 12px; }
+    .ipa { font-size:16px; color:#333; margin:0; }
+    .hint { font-size:12px; color:#666; margin-top:10px; }
+    .modalFoot { padding:12px; border-top:1px solid #eef0f6; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .ghost { font-size:12px; color:#666; }
+  </style>
+</head>
+<body>
+<header>
+  <h1 id="title">英作文カード</h1>
+  <div class="sub" id="subtitle">テーマを選択してください</div>
+
+  <div class="toolbar" id="themeToolbar" style="display:none;">
+    <button class="backBtn" id="backBtn">← テーマ</button>
+    <div class="tabs" id="tabs"></div>
+  </div>
+</header>
+
+<section class="screen show" id="screenPicker">
+  <div class="picker">
+    <input class="search" id="themeSearch" placeholder="テーマ検索（例：自己紹介、習慣…）" />
+    <div class="sectionTitle">最近使った</div>
+    <div class="grid" id="recentGrid"></div>
+    <div class="sectionTitle">すべてのテーマ</div>
+    <div class="grid" id="themeGrid"></div>
+  </div>
+</section>
+
+<section class="screen" id="screenTheme">
+  <main>
+    <table>
+      <thead><tr><th>日本語</th><th style="width:110px;">音声</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </main>
+</section>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modalHead">
+      <div class="leftBadges">
+        <span class="badge" id="modalBadge">---</span>
+        <span class="badge" id="modalTheme">---</span>
+      </div>
+      <div class="statusBtns" id="statusBtns"></div>
+      <button class="closeBtn" id="closeBtn">閉じる</button>
+    </div>
+
+    <div class="cardArea" id="cardArea" title="タップで表⇄裏"></div>
+
+    <div class="modalFoot">
+      <button class="audioBtn" id="modalAudioBtn">▶︎ 再生</button>
+      <div class="ghost">カード面タップで表⇄裏</div>
+    </div>
+  </div>
+</div>
+
+<script src="./app.js"></script>
+</body>
+</html>
