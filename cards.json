@@ -2,7 +2,7 @@
   {
     "themeKey": "theme01",
     "themeName": "自己紹介",
-    "id": "1-1",
+    "id": "theme01-1-1",
     "jp": "私はトヨタで自動車の内装デザイナーとして働いており、この分野で30年以上経験があります。",
     "en": "I work at Toyota as an automotive interior designer, and I’ve been working in this field for over 30 years.",
     "ipa": "/aɪ wɝk ət təˈjoʊtə .../",
@@ -11,7 +11,7 @@
   {
     "themeKey": "theme02",
     "themeName": "朝と夜の習慣",
-    "id": "2-1",
+    "id": "theme02-2-1",
     "jp": "朝はいつも熱いシャワーを浴びます。目が覚めるし、寝ぐせも落ち着くからです。",
     "en": "I always take a hot shower in the morning because it wakes me up and helps tame my bedhead.",
     "ipa": "/aɪ ˈɔlweɪz teɪk .../",
