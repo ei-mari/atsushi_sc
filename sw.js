@@ -1,5 +1,5 @@
 // 反映されない時は v10→v11→v12… と増やす
-const CACHE_NAME = "cardapp-cache-v10";
+const CACHE_NAME = "cardapp-cache-v12";
 
 const APP_SHELL = [
   "./",
