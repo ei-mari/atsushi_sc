@@ -1,12 +1,11 @@
-// 更新したのに見た目が変わらない時は v2→v3 に増やす
-const CACHE_NAME = "cardapp-cache-v3";
+// 反映されない時は v4→v5 に増やす
+const CACHE_NAME = "cardapp-cache-v4";
 
 const APP_SHELL = [
   "./",
   "./index.html",
   "./app.js",
   "./cards.json"
-  // ※ manifest/icons は無くても動くので、addAll失敗を避けるためここには入れていません
 ];
 
 self.addEventListener("install", (event) => {
@@ -33,7 +32,6 @@ self.addEventListener("fetch", (event) => {
       if (cached) return cached;
 
       return fetch(req).then((res) => {
-        // 再生した音声も含め、取れたものはキャッシュしていく
         const copy = res.clone();
         caches.open(CACHE_NAME).then((c) => c.put(req, copy));
         return res;
