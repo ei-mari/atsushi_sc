@@ -2,7 +2,6 @@ const STORAGE_KEY_STATUS     = "cardapp_status_v1";
 const STORAGE_KEY_LAST_THEME = "cardapp_last_theme_v1";
 const STORAGE_KEY_RECENT     = "cardapp_recent_themes_v1";
 
-// ---- status ----
 const STATUSES = [
   { key: "unknown",   label: "覚えていない" },
   { key: "ambiguous", label: "曖昧" },
@@ -22,6 +21,8 @@ let modalStartMode = "start"; // start | jp | audio
 let studyDeck = [];
 let studyIndex = 0;
 let studyShowBack = false;
+// start | audio | jp
+let studyFrontMode = "start";
 
 // audio
 let audio = new Audio();
@@ -61,12 +62,9 @@ function setStatus(id, status) {
   renderModal();
   if (screenStudy.classList.contains("show")) renderStudyCard();
 }
-
 function playAudio(url, cardId, { silent = false } = {}) {
-  if (!url) {
-    if (!silent) alert("audioUrl が未設定です（cards.jsonを確認）");
-    return;
-  }
+  if (!url) { if (!silent) alert("audioUrl が未設定です"); return; }
+
   if (nowPlayingId === cardId && !audio.paused) {
     audio.pause(); audio.currentTime = 0; nowPlayingId = null; return;
   }
@@ -115,7 +113,7 @@ const screenStudy  = document.getElementById("screenStudy");
 // top
 const selectedThemeText = document.getElementById("selectedThemeText");
 const goThemeSelectBtn  = document.getElementById("goThemeSelectBtn");
-const startSwipeAudioBtn= document.getElementById("startSwipeAudioBtn");
+const startSwipeBtn     = document.getElementById("startSwipeBtn");
 const topHint           = document.getElementById("topHint");
 
 // picker
@@ -182,13 +180,13 @@ function showStudy() {
   if (!hasThemeSelected()) return;
   hideAll();
   screenStudy.classList.add("show");
-  subtitleEl.textContent = "スワイプ（音声）";
+  subtitleEl.textContent = "スワイプ";
   setTabActive("top");
 
-  // deck = このテーマの全カード（knownも含む）
   studyDeck = CARDS.filter(c => c.themeKey === currentThemeKey);
   studyIndex = 0;
   studyShowBack = false;
+  studyFrontMode = "start"; // ← 最初は選択画面
 
   renderStudyCard();
 }
@@ -201,12 +199,12 @@ tabListBtn.addEventListener("click", showListScreen);
 function renderTop() {
   const ok = hasThemeSelected();
   selectedThemeText.textContent = ok ? themeNameByKey(currentThemeKey) : "未選択";
-  startSwipeAudioBtn.disabled = !ok;
-  startSwipeAudioBtn.style.opacity = ok ? "1" : ".45";
+  startSwipeBtn.disabled = !ok;
+  startSwipeBtn.style.opacity = ok ? "1" : ".45";
   topHint.textContent = ok ? "開始を押すとスワイプが始まります。" : "テーマを選んでください。";
 }
 goThemeSelectBtn.addEventListener("click", showPicker);
-startSwipeAudioBtn.addEventListener("click", showStudy);
+startSwipeBtn.addEventListener("click", showStudy);
 
 // ---------- picker ----------
 function themeButton(t) {
@@ -326,7 +324,6 @@ cardArea.addEventListener("click", () => {
   showBack = !showBack;
   renderModal();
 });
-
 modalAudioBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   const card = CARDS.find(c => c.id === modalCardId);
@@ -354,10 +351,9 @@ function renderModal() {
   if (!showBack && modalStartMode === "start") {
     cardArea.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:10px;">
-        <div style="font-size:12px; color: rgba(120,120,140,.95);">どちらから始める？</div>
+        <div style="font-size:12px; color:rgba(120,120,140,.95);">どちらから始める？</div>
         <button class="primaryBtn" id="modalChooseJp" style="width:100%;">日本語</button>
         <button class="audioBtn" id="modalChooseAudio" style="width:100%;">🔈 音声</button>
-        <div style="font-size:12px; color: rgba(120,120,140,.95);">選んだ後はタップで英語＋IPAへ</div>
       </div>
     `;
     document.getElementById("modalChooseJp").onclick = (e) => { e.stopPropagation(); modalStartMode = "jp"; renderModal(); };
@@ -373,7 +369,7 @@ function renderModal() {
   if (!showBack && modalStartMode === "audio") {
     cardArea.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:10px;">
-        <div style="font-size:12px; color: rgba(120,120,140,.95);">まず音声でスタート</div>
+        <div style="font-size:12px; color:rgba(120,120,140,.95);">まず音声でスタート</div>
         <button class="audioBtn" id="modalReplay" style="width:100%;">🔈 もう一度再生</button>
         <button class="pillBtn" id="modalShowJp" style="width:100%;">日本語を表示</button>
       </div>
@@ -390,7 +386,7 @@ function renderModal() {
   `;
 }
 
-// ---------- study (audio-only) ----------
+// ---------- study ----------
 studyBackBtn.addEventListener("click", showTop);
 
 function renderStudyCard() {
@@ -401,50 +397,79 @@ function renderStudyCard() {
   const card = studyDeck[studyIndex];
   if (!card) {
     studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
-    studyCardEl.innerHTML = `
-      <p class="enBig">終了！</p>
-      <p class="ipaBig">トップに戻ってください</p>
-    `;
+    studyCardEl.innerHTML = `<p class="enBig">終了！</p><p class="ipaBig">戻ってください</p>`;
     return;
   }
 
-  // フロントは “音声のみ” なので、再生UI＋ヒントだけ
-  studyCardEl.innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:10px;">
-      <div style="font-size:12px; color: rgba(120,120,140,.95);">音声カード</div>
-      <button class="audioBtn" id="studyReplay" style="width:100%; padding:12px 14px; font-size:14px;">🔈 再生</button>
+  // 表面
+  if (!studyShowBack) {
+    if (studyFrontMode === "start") {
+      studyCardEl.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="font-size:12px; color:rgba(120,120,140,.95);">どちらで確認する？</div>
+          <button class="audioBtn" id="studyChooseAudio" style="width:100%; padding:12px 14px; font-size:14px;">🔈 音声再生</button>
+          <button class="pillBtn" id="studyChooseJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語表示</button>
+          <div class="tapHint">選んだ後：タップで英語＋IPA / スワイプで判定</div>
+        </div>
+      `;
+      document.getElementById("studyChooseAudio").onclick = (e) => {
+        e.stopPropagation();
+        studyFrontMode = "audio";
+        playAudio(card.audioUrl, card.id);
+        renderStudyCard();
+      };
+      document.getElementById("studyChooseJp").onclick = (e) => {
+        e.stopPropagation();
+        studyFrontMode = "jp";
+        renderStudyCard();
+      };
+      studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
+      return;
+    }
+
+    if (studyFrontMode === "audio") {
+      studyCardEl.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="font-size:12px; color:rgba(120,120,140,.95);">音声</div>
+          <button class="audioBtn" id="studyReplay" style="width:100%; padding:12px 14px; font-size:14px;">🔈 再生</button>
+          <button class="pillBtn" id="studyShowJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語表示</button>
+          <div class="tapHint">タップで英語＋IPA / スワイプで判定</div>
+        </div>
+      `;
+      document.getElementById("studyReplay").onclick = (e) => { e.stopPropagation(); playAudio(card.audioUrl, card.id); };
+      document.getElementById("studyShowJp").onclick = (e) => { e.stopPropagation(); studyFrontMode = "jp"; renderStudyCard(); };
+      playAudio(card.audioUrl, card.id, { silent: true });
+      studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
+      return;
+    }
+
+    // jp
+    studyCardEl.innerHTML = `
+      <p class="jpBig">${escapeHtml(card.jp)}</p>
       <div class="tapHint">タップで英語＋IPA / スワイプで判定</div>
-    </div>
+    `;
+    studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
+    return;
+  }
+
+  // 裏面
+  studyCardEl.innerHTML = `
+    <p class="enBig">${escapeHtml(card.en)}</p>
+    <p class="ipaBig">${escapeHtml(card.ipa)}</p>
+    <div class="tapHint">タップで表面へ / スワイプで判定</div>
   `;
-  document.getElementById("studyReplay").onclick = (e) => {
-    e.stopPropagation();
-    playAudio(card.audioUrl, card.id);
-  };
-
-  // 自動再生は環境でブロックされるので silentで試すだけ
-  playAudio(card.audioUrl, card.id, { silent: true });
-
   studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
-  studyShowBack = false;
 }
 
-// tap => show back
 studyCardEl.addEventListener("click", () => {
   const card = studyDeck[studyIndex];
   if (!card) return;
 
-  // toggle back/front: front(audio UI) <-> back(EN+IPA)
-  studyShowBack = !studyShowBack;
-  if (!studyShowBack) {
-    renderStudyCard();
-    return;
-  }
+  // start状態はタップ無効（誤操作防止）
+  if (!studyShowBack && studyFrontMode === "start") return;
 
-  studyCardEl.innerHTML = `
-    <p class="enBig">${escapeHtml(card.en)}</p>
-    <p class="ipaBig">${escapeHtml(card.ipa)}</p>
-    <div class="tapHint">タップで戻る / スワイプで判定</div>
-  `;
+  studyShowBack = !studyShowBack;
+  renderStudyCard();
 });
 
 studyAudioBtn.addEventListener("click", (e) => {
@@ -460,8 +485,10 @@ function decideStudy(statusKey) {
   setStatus(card.id, statusKey);
   studyIndex += 1;
   studyShowBack = false;
+  studyFrontMode = "start"; // 次のカードはまた選択から
   renderStudyCard();
 }
+
 actionUnknown.addEventListener("click", () => decideStudy("unknown"));
 actionAmbiguous.addEventListener("click", () => decideStudy("ambiguous"));
 actionKnown.addEventListener("click", () => decideStudy("known"));
@@ -472,6 +499,10 @@ let sx=0, sy=0, dx=0, dy=0, dragging=false;
 studyCardEl.addEventListener("pointerdown", (e) => {
   const card = studyDeck[studyIndex];
   if (!card) return;
+
+  // start状態はスワイプ無効（誤判定防止）
+  if (!studyShowBack && studyFrontMode === "start") return;
+
   dragging = true;
   sx = e.clientX; sy = e.clientY;
   dx = 0; dy = 0;
@@ -505,19 +536,15 @@ async function loadCards() {
 }
 
 function pickDefaultTheme() {
-  // 1) 既存の保存テーマ
   const saved = loadText(STORAGE_KEY_LAST_THEME, "");
   if (saved && THEMES.some(t => t.themeKey === saved)) return saved;
 
-  // 2) "自己紹介" があれば優先
   const byName = THEMES.find(t => (t.themeName || "").includes("自己紹介"));
   if (byName) return byName.themeKey;
 
-  // 3) theme01 があれば
   const byKey = THEMES.find(t => t.themeKey === "theme01");
   if (byKey) return byKey.themeKey;
 
-  // 4) それ以外は先頭
   return THEMES[0]?.themeKey || null;
 }
 
@@ -527,13 +554,22 @@ async function init() {
   currentThemeKey = pickDefaultTheme();
   if (currentThemeKey) saveText(STORAGE_KEY_LAST_THEME, currentThemeKey);
 
-  // initial screen: Top
+  // initial screen
   showTop();
 
   // SW
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(console.warn);
   }
+}
+
+// top/list tabs + top actions
+function renderTop() {
+  const ok = hasThemeSelected();
+  selectedThemeText.textContent = ok ? themeNameByKey(currentThemeKey) : "未選択";
+  startSwipeBtn.disabled = !ok;
+  startSwipeBtn.style.opacity = ok ? "1" : ".45";
+  topHint.textContent = ok ? "開始を押すとスワイプが始まります。" : "テーマを選んでください。";
 }
 
 init().catch((e) => {
