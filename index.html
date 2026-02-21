@@ -3,49 +3,53 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0b0f19" />
+  <meta name="theme-color" content="#ffffff" />
   <title>英作文カード</title>
 
   <style>
     :root{
-      --bg:#f6f7fb; --text:#0b0f19; --muted:rgba(11,15,25,.58);
-      --border:rgba(15,23,42,.10); --card:rgba(255,255,255,.82);
-      --shadow:0 14px 40px rgba(2,6,23,.10); --shadowSm:0 8px 22px rgba(2,6,23,.10);
-      --radius:18px; --radiusLg:26px; --pill:999px;
+      --bg:#ffffff;
+      --text:#0b0f19;
+      --muted:rgba(11,15,25,.58);
+      --border:rgba(15,23,42,.10);
+      --card:#ffffff;
+      --shadow:0 10px 28px rgba(2,6,23,.08);
+      --shadowSm:0 6px 18px rgba(2,6,23,.06);
+      --radius:16px;
+      --radiusLg:22px;
+      --pill:999px;
     }
-    @media (prefers-color-scheme: dark){
-      :root{
-        --bg:#0b1020; --text:#eef2ff; --muted:rgba(238,242,255,.55);
-        --border:rgba(148,163,184,.16); --card:rgba(17,24,39,.62);
-        --shadow:0 18px 60px rgba(0,0,0,.35); --shadowSm:0 10px 34px rgba(0,0,0,.35);
-      }
-    }
-    *{box-sizing:border-box;}
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
     body{
-      margin:0; color:var(--text);
-      background:
-        radial-gradient(1200px 700px at 15% -12%, rgba(99,102,241,.20), transparent 60%),
-        radial-gradient(1200px 700px at 90% 0%, rgba(14,165,233,.18), transparent 55%),
-        radial-gradient(900px 600px at 40% 110%, rgba(236,72,153,.14), transparent 55%),
-        var(--bg);
+      margin:0;
+      background: var(--bg);
+      color: var(--text);
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
-    header{
-      position:sticky; top:0; z-index:30;
-      padding:14px 14px 10px;
-      border-bottom:1px solid var(--border);
-      background: rgba(255,255,255,.60);
-      backdrop-filter: blur(16px);
-    }
-    @media (prefers-color-scheme: dark){
-      header{ background: rgba(17,24,39,.45); }
-    }
-    h1{margin:0; font-size:18px; letter-spacing:-0.02em;}
-    .sub{margin:6px 0 0; font-size:12px; color:var(--muted);}
 
-    .tabsTop{ margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+    header{
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+    }
+
+    h1{ margin:0; font-size:18px; letter-spacing:-0.02em; }
+    .sub{ margin:6px 0 0; font-size:12px; color:var(--muted); }
+
+    .tabsTop{
+      margin-top: 10px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
     .tab{
       border:1px solid var(--border);
       background: var(--card);
@@ -57,16 +61,16 @@
       user-select:none;
       -webkit-tap-highlight-color: transparent;
     }
-    .tab.active{ background:#0b0f19; color:#fff; border-color: rgba(2,6,23,.2); }
-    @media (prefers-color-scheme: dark){
-      .tab.active{ background:#eef2ff; color:#0b1020; border-color: rgba(238,242,255,.16); }
+    .tab.active{
+      background:#0b0f19;
+      color:#fff;
+      border-color: rgba(2,6,23,.2);
     }
     .tab:active{ transform: scale(.985); }
 
     .screen{ display:none; }
     .screen.show{ display:block; }
 
-    /* buttons */
     .pillBtn{
       border:1px solid var(--border);
       background: var(--card);
@@ -92,23 +96,34 @@
       user-select:none;
       -webkit-tap-highlight-color: transparent;
     }
-    @media (prefers-color-scheme: dark){
-      .primaryBtn{ background:#eef2ff; color:#0b1020; border-color: rgba(238,242,255,.16); }
-    }
     .primaryBtn:active{ transform: scale(.985); }
 
-    /* top layout */
-    .wrap{ padding:12px 14px 96px; display:flex; flex-direction:column; gap:12px; }
+    .wrap{
+      padding: 12px 14px 96px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
     .panel{
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radiusLg);
       box-shadow: var(--shadow);
-      padding:14px;
+      padding: 14px;
     }
     .label{ font-size:12px; color:var(--muted); margin-bottom:8px; }
-    .row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-    .bigTheme{ margin:0; font-size:16px; letter-spacing:-0.01em; }
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .bigTheme{
+      margin:0;
+      font-size:16px;
+      letter-spacing:-0.01em;
+    }
     .hint{ margin-top:10px; font-size:12px; color:var(--muted); }
 
     /* picker */
@@ -118,21 +133,18 @@
       padding:12px 14px;
       border-radius: var(--pill);
       border:1px solid var(--border);
-      background: rgba(255,255,255,.85);
-      box-shadow: 0 8px 26px rgba(2,6,23,.08);
+      background:#fff;
+      box-shadow: var(--shadowSm);
       outline:none;
       color:var(--text);
-    }
-    @media (prefers-color-scheme: dark){
-      .search{ background: rgba(17,24,39,.70); }
     }
     .sectionTitle{ margin:14px 2px 8px; font-size:12px; color:var(--muted); font-weight:600; }
     .grid{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
     .themeBtn{
       border:1px solid var(--border);
-      background: var(--card);
+      background:#fff;
       border-radius: var(--radius);
-      box-shadow: var(--shadow);
+      box-shadow: var(--shadowSm);
       padding:12px;
       text-align:left;
       cursor:pointer;
@@ -148,7 +160,7 @@
     table{ width:100%; border-collapse:separate; border-spacing:0 10px; }
     thead{ display:none; }
     tbody td{
-      background: var(--card);
+      background:#fff;
       border-top:1px solid var(--border);
       border-bottom:1px solid var(--border);
       padding:14px;
@@ -167,21 +179,20 @@
     }
     .rowTop{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
     .jp{ font-size:15px; line-height:1.45; letter-spacing:-0.01em; }
+
     .badge{
       font-size:11px;
       padding:4px 10px;
       border-radius: var(--pill);
-      background: rgba(99,102,241,.22);
-      border:1px solid rgba(99,102,241,.30);
-      color: rgba(11,15,25,.85);
+      background: rgba(99,102,241,.12);
+      border:1px solid rgba(99,102,241,.18);
+      color: rgba(11,15,25,.80);
       white-space:nowrap;
     }
-    @media (prefers-color-scheme: dark){
-      .badge{ color: rgba(238,242,255,.90); }
-    }
+
     .audioBtn{
       border:1px solid var(--border);
-      background: var(--card);
+      background:#fff;
       box-shadow: var(--shadowSm);
       padding:10px 12px;
       border-radius: var(--pill);
@@ -195,18 +206,18 @@
     /* modal */
     .overlay{
       position:fixed; inset:0;
-      background: rgba(0,0,0,.35);
+      background: rgba(0,0,0,.28);
       display:none;
       align-items:center;
       justify-content:center;
       padding:16px;
       z-index:50;
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(8px);
     }
     .overlay.show{ display:flex; }
     .modal{
       width:min(700px, 100%);
-      background: var(--card);
+      background:#fff;
       border:1px solid var(--border);
       border-radius: var(--radiusLg);
       overflow:hidden;
@@ -225,7 +236,7 @@
     .statusBtns{ display:flex; gap:8px; flex-wrap:wrap; }
     .sbtn{
       border:1px solid var(--border);
-      background: var(--card);
+      background:#fff;
       box-shadow: var(--shadowSm);
       padding:9px 12px;
       border-radius: var(--pill);
@@ -235,10 +246,13 @@
       -webkit-tap-highlight-color: transparent;
     }
     .sbtn.active{ background:#0b0f19; color:#fff; border-color: rgba(2,6,23,.2); }
-    @media (prefers-color-scheme: dark){
-      .sbtn.active{ background:#eef2ff; color:#0b1020; border-color: rgba(238,242,255,.16); }
+
+    .cardArea{
+      padding:18px 14px 16px;
+      cursor:pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
     }
-    .cardArea{ padding:18px 14px 16px; cursor:pointer; user-select:none; -webkit-tap-highlight-color: transparent; }
     .big,.en{ margin:0; font-size:20px; line-height:1.45; letter-spacing:-0.015em; }
     .en{ margin:0 0 12px; }
     .ipa{ margin:0; font-size:16px; color:var(--muted); }
@@ -259,8 +273,8 @@
     .studyCard{
       width:min(560px, 100%);
       height:100%;
-      border-radius: calc(var(--radiusLg) + 4px);
-      background: var(--card);
+      border-radius: calc(var(--radiusLg) + 2px);
+      background:#fff;
       border:1px solid var(--border);
       box-shadow: var(--shadow);
       padding:18px;
@@ -274,13 +288,15 @@
     }
     .enBig{ margin:0 0 12px; font-size:22px; line-height:1.45; letter-spacing:-0.015em; }
     .ipaBig{ margin:0; font-size:16px; color:var(--muted); }
+    .jpBig{ margin:0; font-size:22px; line-height:1.45; letter-spacing:-0.015em; }
     .tapHint{ margin-top:10px; font-size:12px; color:var(--muted); }
+
     .actions{ margin-top:14px; display:flex; justify-content:center; gap:10px; }
     .actionBtn{
       width:54px; height:54px;
       border-radius: var(--pill);
       border:1px solid var(--border);
-      background: var(--card);
+      background:#fff;
       box-shadow: var(--shadowSm);
       font-size:18px;
       cursor:pointer;
@@ -317,8 +333,8 @@
     </div>
 
     <div class="panel">
-      <div class="label">スワイプモード（音声）</div>
-      <button class="primaryBtn" id="startSwipeAudioBtn" style="width:100%;">開始</button>
+      <div class="label">スワイプモード</div>
+      <button class="primaryBtn" id="startSwipeBtn" style="width:100%;">開始</button>
       <div class="hint">右=覚えた / 左=覚えていない / 上=曖昧</div>
     </div>
   </div>
@@ -352,7 +368,7 @@
   </main>
 </section>
 
-<!-- STUDY (audio only front) -->
+<!-- STUDY -->
 <section class="screen" id="screenStudy">
   <div class="studyWrap">
     <div class="studyTop">
