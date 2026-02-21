@@ -1,9 +1,10 @@
 // =========================
-//  Settings / Storage Keys
+//  Storage Keys
 // =========================
-const STORAGE_KEY_STATUS     = "cardapp_status_v1";        // { [id]: "known"|"ambiguous"|"unknown" }
-const STORAGE_KEY_LAST_THEME = "cardapp_last_theme_v1";    // "theme01"
-const STORAGE_KEY_RECENT     = "cardapp_recent_themes_v1"; // ["theme01", ...]
+const STORAGE_KEY_STATUS     = "cardapp_status_v1";
+const STORAGE_KEY_LAST_THEME = "cardapp_last_theme_v1";
+const STORAGE_KEY_RECENT     = "cardapp_recent_themes_v1";
+const STORAGE_KEY_FILTER     = "cardapp_filter_v1";
 
 // =========================
 //  Status / State
@@ -18,13 +19,18 @@ let CARDS = [];
 let THEMES = [];
 
 let currentThemeKey = null;
-let currentFilter   = "unknown";
+let currentFilter   = loadText(STORAGE_KEY_FILTER, "unknown");
 
-// modal state
+// modal
 let modalCardId = null;
 let showBack = false;
-// "start" | "jp" | "audio"
-let modalStartMode = "start";
+let modalStartMode = "start"; // start | jp | audio
+
+// study
+let studyDeck = [];
+let studyIndex = 0;
+let studyShowBack = false;
+let studyFrontMode = "jp"; // jp | audio
 
 // audio
 let audio = new Audio();
@@ -43,10 +49,13 @@ function loadJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
   catch { return fallback; }
 }
+function saveJSON(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
-function saveJSON(key, val) {
-  localStorage.setItem(key, JSON.stringify(val));
+function loadText(key, fallback) {
+  const v = localStorage.getItem(key);
+  return v == null ? fallback : v;
 }
+function saveText(key, val) { localStorage.setItem(key, val); }
 
 function statusLabel(k) {
   const s = STATUSES.find(x => x.key === k);
@@ -63,16 +72,18 @@ function setStatus(id, status) {
   map[id] = status;
   saveJSON(STORAGE_KEY_STATUS, map);
 
-  // update UI
-  if (screenStudy.classList.contains("show")) {
-    renderStudyCard();
-  }
+  // update UIs
+  renderTop();
   renderThemeTable();
   renderModal();
+  if (isStudy()) renderStudyCard();
 }
 
-function playAudio(url, cardId) {
-  if (!url) return alert("audioUrl が未設定です（cards.jsonを確認）");
+function playAudio(url, cardId, { silent = false } = {}) {
+  if (!url) {
+    if (!silent) alert("audioUrl が未設定です（cards.jsonを確認）");
+    return;
+  }
 
   // same card -> stop
   if (nowPlayingId === cardId && !audio.paused) {
@@ -88,27 +99,71 @@ function playAudio(url, cardId) {
   audio.src = url;
 
   audio.play().catch(() => {
-    alert("音声を再生できませんでした（パス/拡張子/アップロード場所を確認）");
+    // 自動再生ブロック等もあるので、silent時は無言でOK
+    if (!silent) alert("音声を再生できませんでした（パス/形式/ブラウザ設定を確認）");
   });
 }
+
+function buildThemes() {
+  const map = new Map();
+  for (const c of CARDS) {
+    const key = c.themeKey;
+    const name = c.themeName || c.themeKey || "Untitled";
+    const x = map.get(key) || { themeKey: key, themeName: name, count: 0 };
+    x.count += 1;
+    map.set(key, x);
+  }
+  THEMES = [...map.values()].sort((a,b) => a.themeName.localeCompare(b.themeName, "ja"));
+}
+
+function themeNameByKey(themeKey) {
+  return (THEMES.find(t => t.themeKey === themeKey)?.themeName) || themeKey || "未選択";
+}
+
+function hasThemeSelected() {
+  return !!currentThemeKey && THEMES.some(t => t.themeKey === currentThemeKey);
+}
+
+function isTop(){ return screenTop.classList.contains("show"); }
+function isPicker(){ return screenPicker.classList.contains("show"); }
+function isList(){ return screenTheme.classList.contains("show"); }
+function isStudy(){ return screenStudy.classList.contains("show"); }
 
 // =========================
 //  DOM
 // =========================
-const titleEl     = document.getElementById("title");
-const subtitleEl  = document.getElementById("subtitle");
+const titleEl    = document.getElementById("title");
+const subtitleEl = document.getElementById("subtitle");
 
+// screens
+const screenTop    = document.getElementById("screenTop");
 const screenPicker = document.getElementById("screenPicker");
 const screenTheme  = document.getElementById("screenTheme");
-const themeToolbar = document.getElementById("themeToolbar");
+const screenStudy  = document.getElementById("screenStudy");
 
-const backBtn   = document.getElementById("backBtn");
-const tabsEl    = document.getElementById("tabs");
-const tbodyEl   = document.getElementById("tbody");
+// header toolbars
+const listToolbar = document.getElementById("listToolbar");
+const listBackTopBtn = document.getElementById("listBackTopBtn");
+const tabsEl = document.getElementById("tabs");
 
+// top
+const selectedThemeText = document.getElementById("selectedThemeText");
+const goThemeSelectBtn  = document.getElementById("goThemeSelectBtn");
+const topTabsEl         = document.getElementById("topTabs");
+const modeSwipeJpBtn    = document.getElementById("modeSwipeJpBtn");
+const modeSwipeAudioBtn = document.getElementById("modeSwipeAudioBtn");
+const modeListBtn       = document.getElementById("modeListBtn");
+const topHint           = document.getElementById("topHint");
+
+// picker
+const pickerBackTopBtn = document.getElementById("pickerBackTopBtn");
 const themeSearch = document.getElementById("themeSearch");
 const recentGrid  = document.getElementById("recentGrid");
 const themeGrid   = document.getElementById("themeGrid");
+const pickerCount = document.getElementById("pickerCount");
+
+// list
+const tbodyEl = document.getElementById("tbody");
 
 // modal
 const overlayEl     = document.getElementById("overlay");
@@ -120,105 +175,137 @@ const statusBtns    = document.getElementById("statusBtns");
 const modalAudioBtn = document.getElementById("modalAudioBtn");
 
 // study
-const screenStudy     = document.getElementById("screenStudy");
-const studyBtn        = document.getElementById("studyBtn");
-const studyBackBtn    = document.getElementById("studyBackBtn");
+const studyBackTopBtn = document.getElementById("studyBackTopBtn");
 const studyCardEl     = document.getElementById("studyCard");
 const studyAudioBtn   = document.getElementById("studyAudioBtn");
 const studyCounterEl  = document.getElementById("studyCounter");
+const studyHintEl     = document.getElementById("studyHint");
 const actionUnknown   = document.getElementById("actionUnknown");
 const actionAmbiguous = document.getElementById("actionAmbiguous");
 const actionKnown     = document.getElementById("actionKnown");
 
 // =========================
-//  Data -> Themes
-// =========================
-function buildThemes() {
-  const map = new Map();
-
-  for (const c of CARDS) {
-    const key = c.themeKey;
-    const name = c.themeName || c.themeKey || "Untitled";
-    const x = map.get(key) || { themeKey: key, themeName: name, count: 0 };
-    x.count += 1;
-    map.set(key, x);
-  }
-
-  THEMES = [...map.values()].sort((a,b) => a.themeName.localeCompare(b.themeName, "ja"));
-}
-
-function themeNameByKey(themeKey) {
-  return (THEMES.find(t => t.themeKey === themeKey)?.themeName) || themeKey;
-}
-
-// =========================
 //  Navigation
 // =========================
-function showPicker() {
-  currentThemeKey = null;
-
-  screenPicker.classList.add("show");
+function hideAllScreens(){
+  screenTop.classList.remove("show");
+  screenPicker.classList.remove("show");
   screenTheme.classList.remove("show");
   screenStudy.classList.remove("show");
+}
 
-  themeToolbar.style.display = "none";
-
+function showTop(){
+  hideAllScreens();
+  screenTop.classList.add("show");
+  listToolbar.style.display = "none";
   titleEl.textContent = "英作文カード";
-  subtitleEl.textContent = "テーマを選択してください";
+  subtitleEl.textContent = "トップ";
+  renderTop();
+}
 
+function showPicker(){
+  hideAllScreens();
+  screenPicker.classList.add("show");
+  listToolbar.style.display = "none";
+  titleEl.textContent = "テーマ選択";
+  subtitleEl.textContent = "テーマを選んでトップに戻ります";
   renderPicker();
 }
 
+function showList(){
+  if (!hasThemeSelected()) return;
+  hideAllScreens();
+  screenTheme.classList.add("show");
+  listToolbar.style.display = "flex";
+  titleEl.textContent = themeNameByKey(currentThemeKey);
+  subtitleEl.textContent = "一覧選択";
+  renderTabs(tabsEl);
+  renderThemeTable();
+}
+
+function showStudy(frontMode){
+  if (!hasThemeSelected()) return;
+  hideAllScreens();
+  screenStudy.classList.add("show");
+  listToolbar.style.display = "none";
+
+  studyFrontMode = frontMode; // "jp" | "audio"
+  studyIndex = 0;
+  studyShowBack = false;
+
+  // current filter only
+  studyDeck = CARDS
+    .filter(c => c.themeKey === currentThemeKey)
+    .filter(c => getStatus(c.id) === currentFilter);
+
+  titleEl.textContent = themeNameByKey(currentThemeKey);
+  subtitleEl.textContent = frontMode === "jp" ? "スワイプ（日本語）" : "スワイプ（音声）";
+  studyHintEl.textContent = "スワイプ：右=覚えた / 左=覚えていない / 上=曖昧　（タップで表⇄裏）";
+
+  renderStudyCard();
+}
+
+// =========================
+//  Top UI
+// =========================
+function renderTop(){
+  const ok = hasThemeSelected();
+  selectedThemeText.textContent = ok ? themeNameByKey(currentThemeKey) : "未選択";
+
+  // filter tabs on top
+  renderTabs(topTabsEl, { compact: true });
+
+  // enable/disable modes
+  [modeSwipeJpBtn, modeSwipeAudioBtn, modeListBtn].forEach(btn => {
+    if (ok) btn.classList.remove("disabled");
+    else btn.classList.add("disabled");
+  });
+  topHint.textContent = ok ? "モードを選んで開始。" : "まず「テーマを選択」してください。";
+}
+
+goThemeSelectBtn.addEventListener("click", showPicker);
+
+modeSwipeJpBtn.addEventListener("click", () => showStudy("jp"));
+modeSwipeAudioBtn.addEventListener("click", () => showStudy("audio"));
+modeListBtn.addEventListener("click", showList);
+
+// =========================
+//  Picker UI
+// =========================
 function pushRecent(themeKey) {
   let arr = loadJSON(STORAGE_KEY_RECENT, []);
   arr = [themeKey, ...arr.filter(x => x !== themeKey)].slice(0, 6);
   saveJSON(STORAGE_KEY_RECENT, arr);
 }
 
-function showTheme(themeKey) {
-  currentThemeKey = themeKey;
-  localStorage.setItem(STORAGE_KEY_LAST_THEME, themeKey);
-  pushRecent(themeKey);
-
-  screenPicker.classList.remove("show");
-  screenStudy.classList.remove("show");
-  screenTheme.classList.add("show");
-
-  themeToolbar.style.display = "flex";
-
-  titleEl.textContent = themeNameByKey(themeKey);
-  subtitleEl.textContent = "ステータスで絞り込み → 行タップでカード";
-
-  renderTabs();
-  renderThemeTable();
-}
-
-backBtn.addEventListener("click", showPicker);
-
-// =========================
-//  Picker UI
-// =========================
-function themeButton(t) {
+function themeButton(t){
   const btn = document.createElement("button");
   btn.className = "themeBtn";
   btn.innerHTML = `
     <p class="themeTitle">${escapeHtml(t.themeName)}</p>
     <p class="themeMeta">${t.count} cards</p>
   `;
-  btn.onclick = () => showTheme(t.themeKey);
+  btn.onclick = () => {
+    currentThemeKey = t.themeKey;
+    saveText(STORAGE_KEY_LAST_THEME, currentThemeKey);
+    pushRecent(currentThemeKey);
+    showTop();
+  };
   return btn;
 }
 
-function renderPicker() {
+function renderPicker(){
   const q = (themeSearch.value || "").trim().toLowerCase();
+
   const filtered = THEMES.filter(t => t.themeName.toLowerCase().includes(q));
 
-  // recent
   const recentKeys = loadJSON(STORAGE_KEY_RECENT, []);
   const recent = recentKeys
     .map(k => THEMES.find(t => t.themeKey === k))
     .filter(Boolean)
     .filter(t => t.themeName.toLowerCase().includes(q));
+
+  pickerCount.textContent = `${THEMES.length} themes`;
 
   recentGrid.innerHTML = "";
   if (recent.length === 0) {
@@ -227,7 +314,6 @@ function renderPicker() {
     recent.forEach(t => recentGrid.appendChild(themeButton(t)));
   }
 
-  // all
   themeGrid.innerHTML = "";
   if (filtered.length === 0) {
     themeGrid.innerHTML = `<div style="color:rgba(120,120,140,.9);grid-column:1/-1;">一致するテーマがありません。</div>`;
@@ -237,31 +323,47 @@ function renderPicker() {
 }
 
 themeSearch.addEventListener("input", renderPicker);
+pickerBackTopBtn.addEventListener("click", showTop);
 
 // =========================
-//  Tabs UI
+//  Tabs (shared)
 // =========================
-function renderTabs() {
-  tabsEl.innerHTML = "";
+function renderTabs(containerEl, { compact = false } = {}){
+  containerEl.innerHTML = "";
   STATUSES.forEach(s => {
     const btn = document.createElement("button");
     btn.className = "tab" + (currentFilter === s.key ? " active" : "");
     btn.textContent = s.label;
+    btn.style.padding = compact ? "9px 10px" : "";
     btn.onclick = () => {
       currentFilter = s.key;
-      renderThemeTable();
+      saveText(STORAGE_KEY_FILTER, currentFilter);
+
+      // refresh current screen
+      renderTop();
+      if (isList()) renderThemeTable();
+      if (isStudy()) {
+        // rebuild deck on filter change
+        studyDeck = CARDS
+          .filter(c => c.themeKey === currentThemeKey)
+          .filter(c => getStatus(c.id) === currentFilter);
+        studyIndex = 0;
+        studyShowBack = false;
+        renderStudyCard();
+      }
     };
-    tabsEl.appendChild(btn);
+    containerEl.appendChild(btn);
   });
 }
 
 // =========================
-//  Theme Table UI
+//  List
 // =========================
-function renderThemeTable() {
-  tbodyEl.innerHTML = "";
+listBackTopBtn.addEventListener("click", showTop);
 
-  if (!currentThemeKey) return;
+function renderThemeTable(){
+  tbodyEl.innerHTML = "";
+  if (!hasThemeSelected()) return;
 
   const rows = CARDS
     .filter(c => c.themeKey === currentThemeKey)
@@ -271,7 +373,6 @@ function renderThemeTable() {
     const tr = document.createElement("tr");
 
     const tdJp = document.createElement("td");
-    tdJp.className = "jpCell";
     tdJp.innerHTML = `
       <div class="rowTop">
         <span class="jp">${escapeHtml(card.jp)}</span>
@@ -302,7 +403,7 @@ function renderThemeTable() {
     td1.style.borderRadius = "18px 0 0 18px";
     td2.style.borderRadius = "0 18px 18px 0";
     td1.style.color = "rgba(120,120,140,.95)";
-    td1.textContent = "このステータスのカードはまだありません。";
+    td1.textContent = "このフィルタのカードはありません。";
     td2.textContent = "";
     tr.appendChild(td1);
     tr.appendChild(td2);
@@ -311,39 +412,33 @@ function renderThemeTable() {
 }
 
 // =========================
-//  Modal UI (start choice: 日本語 / 🔈)
+//  Modal (start choice: 日本語 / 🔈)
 // =========================
-function openModal(cardId) {
+function openModal(cardId){
   modalCardId = cardId;
   showBack = false;
-  modalStartMode = "start"; // ← ここが追加ポイント
+  modalStartMode = "start";
   overlayEl.classList.add("show");
   renderModal();
 }
-
-function closeModal() {
+function closeModal(){
   overlayEl.classList.remove("show");
   modalCardId = null;
 }
-
 closeBtn.addEventListener("click", closeModal);
 overlayEl.addEventListener("click", (e) => { if (e.target === overlayEl) closeModal(); });
 
-// カード面タップの挙動を「開始状態」に対応させる
 cardArea.addEventListener("click", () => {
   if (!modalCardId) return;
 
-  // まだ選択してないならタップでは何もしない
   if (modalStartMode === "start") return;
 
-  // 音声スタート中のタップは「日本語表示」にする（裏面へは飛ばさない）
   if (!showBack && modalStartMode === "audio") {
     modalStartMode = "jp";
     renderModal();
     return;
   }
 
-  // 通常の表⇄裏
   showBack = !showBack;
   renderModal();
 });
@@ -355,56 +450,48 @@ modalAudioBtn.addEventListener("click", (e) => {
   playAudio(card.audioUrl, card.id);
 });
 
-function renderModal() {
+function renderModal(){
   if (!modalCardId) return;
   const card = CARDS.find(c => c.id === modalCardId);
   if (!card) return;
 
-  const st = getStatus(card.id);
-  modalBadge.textContent = statusLabel(st);
+  modalBadge.textContent = statusLabel(getStatus(card.id));
   modalTheme.textContent = themeNameByKey(card.themeKey);
 
   // status buttons
   statusBtns.innerHTML = "";
   STATUSES.forEach(s => {
     const btn = document.createElement("button");
-    btn.className = "sbtn" + (st === s.key ? " active" : "");
+    btn.className = "sbtn" + (getStatus(card.id) === s.key ? " active" : "");
     btn.textContent = s.label;
     btn.onclick = (e) => { e.stopPropagation(); setStatus(card.id, s.key); };
     statusBtns.appendChild(btn);
   });
 
-  // 開始画面：日本語 / 🔈 を選ぶ
+  // start selector
   if (!showBack && modalStartMode === "start") {
     cardArea.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:10px;">
         <div style="font-size:12px; color: rgba(120,120,140,.95);">どちらから始める？</div>
-        <button class="primaryBtn" id="modalChooseJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語</button>
-        <button class="audioBtn" id="modalChooseAudio" style="width:100%; padding:12px 14px; font-size:14px;">🔈 音声</button>
+        <button class="primaryBtn" id="modalChooseJp" style="width:100%;">日本語</button>
+        <button class="audioBtn" id="modalChooseAudio" style="width:100%;">🔈 音声</button>
         <div class="hint">選んだ後はタップで裏面（英語＋IPA）へ</div>
       </div>
     `;
-
-    const chooseJp = document.getElementById("modalChooseJp");
-    const chooseAudio = document.getElementById("modalChooseAudio");
-
-    chooseJp.onclick = (e) => {
+    document.getElementById("modalChooseJp").onclick = (e) => {
       e.stopPropagation();
       modalStartMode = "jp";
       renderModal();
     };
-
-    chooseAudio.onclick = (e) => {
+    document.getElementById("modalChooseAudio").onclick = (e) => {
       e.stopPropagation();
       modalStartMode = "audio";
       playAudio(card.audioUrl, card.id);
       renderModal();
     };
-
     return;
   }
 
-  // 表面（日本語）
   if (!showBack && modalStartMode === "jp") {
     cardArea.innerHTML = `
       <p class="big">${escapeHtml(card.jp)}</p>
@@ -413,13 +500,12 @@ function renderModal() {
     return;
   }
 
-  // 表面（音声スタート）
   if (!showBack && modalStartMode === "audio") {
     cardArea.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:10px;">
         <div style="font-size:12px; color: rgba(120,120,140,.95);">まず音声でスタート</div>
-        <button class="audioBtn" id="modalReplay" style="width:100%; padding:12px 14px; font-size:14px;">🔈 もう一度再生</button>
-        <button class="pillBtn" id="modalShowJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語を表示</button>
+        <button class="audioBtn" id="modalReplay" style="width:100%;">🔈 もう一度再生</button>
+        <button class="pillBtn" id="modalShowJp" style="width:100%;">日本語を表示</button>
         <div class="hint">（カード面タップでも日本語を表示）</div>
       </div>
     `;
@@ -435,7 +521,6 @@ function renderModal() {
     return;
   }
 
-  // 裏面（英語＋IPA）
   cardArea.innerHTML = `
     <p class="en">${escapeHtml(card.en)}</p>
     <p class="ipa">${escapeHtml(card.ipa)}</p>
@@ -444,132 +529,68 @@ function renderModal() {
 }
 
 // =========================
-//  Study Mode (Swipe)  start choice: 日本語 / 🔈
+//  Study (Swipe) - front fixed (jp/audio)
 // =========================
-let studyDeck = [];
-let studyIndex = 0;
-let studyShowBack = false;
-// "start" | "jp" | "audio"
-let studyStartMode = "start";
+studyBackTopBtn.addEventListener("click", showTop);
 
-function enterStudyMode() {
-  if (!currentThemeKey) return;
-
-  studyDeck = CARDS
-    .filter(c => c.themeKey === currentThemeKey)
-    .filter(c => getStatus(c.id) === currentFilter);
-
-  studyIndex = 0;
-  studyShowBack = false;
-  studyStartMode = "start";
-
-  screenTheme.classList.remove("show");
-  screenStudy.classList.add("show");
-  themeToolbar.style.display = "none";
-
-  titleEl.textContent = `${themeNameByKey(currentThemeKey)}`;
-  subtitleEl.textContent = "スワイプで判定（まず日本語/音声を選択）";
-
-  renderStudyCard();
-}
-
-function exitStudyMode() {
-  screenStudy.classList.remove("show");
-  screenTheme.classList.add("show");
-  themeToolbar.style.display = "flex";
-
-  titleEl.textContent = themeNameByKey(currentThemeKey);
-  subtitleEl.textContent = "ステータスで絞り込み → 行タップでカード";
-
-  renderThemeTable();
-}
-
-studyBtn.addEventListener("click", enterStudyMode);
-studyBackBtn.addEventListener("click", exitStudyMode);
-
-function renderStudyCard() {
+function renderStudyCard(){
   const total = studyDeck.length;
-  const current = Math.min(studyIndex + 1, total);
-  studyCounterEl.textContent = `${total === 0 ? 0 : current} / ${total}`;
+  const cur = Math.min(studyIndex + 1, total);
+  studyCounterEl.textContent = `${total === 0 ? 0 : cur} / ${total}`;
 
   const card = studyDeck[studyIndex];
   if (!card) {
     studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
     studyCardEl.innerHTML = `
-      <p class="jpBig">このタブのカードは終わり！</p>
-      <div class="tapHint">別のタブに切り替えるか、戻ってカードを追加してね</div>
+      <p class="jpBig">このフィルタのカードは終わり！</p>
+      <div class="tapHint">トップに戻ってフィルタやテーマを変えてね</div>
     `;
     return;
   }
 
-  // 開始選択
-  if (!studyShowBack && studyStartMode === "start") {
+  if (!studyShowBack) {
+    if (studyFrontMode === "jp") {
+      studyCardEl.innerHTML = `
+        <p class="jpBig">${escapeHtml(card.jp)}</p>
+        <div class="tapHint">タップで裏面（英語＋IPA） / スワイプで判定</div>
+      `;
+    } else {
+      // audio front
+      studyCardEl.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="font-size:12px; color: rgba(120,120,140,.95);">音声からスタート</div>
+          <button class="audioBtn" id="studyReplay" style="width:100%; padding:12px 14px; font-size:14px;">🔈 再生</button>
+          <button class="pillBtn" id="studyShowJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語を表示</button>
+          <div class="tapHint">（カード面タップでも日本語を表示）</div>
+        </div>
+      `;
+      document.getElementById("studyReplay").onclick = (e) => {
+        e.stopPropagation();
+        playAudio(card.audioUrl, card.id);
+      };
+      document.getElementById("studyShowJp").onclick = (e) => {
+        e.stopPropagation();
+        // 音声モードでも、日本語を見てから裏面に行けるように
+        studyFrontMode = "jp";
+        renderStudyCard();
+        // 戻したくなったらトップから入り直す運用（要望があれば“カード単位で固定”に変更可）
+      };
+
+      // 自動再生は環境でブロックされやすいので silent で試すだけ
+      playAudio(card.audioUrl, card.id, { silent: true });
+    }
+  } else {
     studyCardEl.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <div style="font-size:12px; color: rgba(120,120,140,.95);">どちらから始める？</div>
-        <button class="primaryBtn" id="studyChooseJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語</button>
-        <button class="audioBtn" id="studyChooseAudio" style="width:100%; padding:12px 14px; font-size:14px;">🔈 音声</button>
-        <div class="tapHint">選択後：タップで裏面 / スワイプで判定</div>
-      </div>
+      <p class="enBig">${escapeHtml(card.en)}</p>
+      <p class="ipaBig">${escapeHtml(card.ipa)}</p>
+      <div class="tapHint">タップで表面へ / スワイプで判定</div>
     `;
-    document.getElementById("studyChooseJp").onclick = (e) => {
-      e.stopPropagation();
-      studyStartMode = "jp";
-      renderStudyCard();
-    };
-    document.getElementById("studyChooseAudio").onclick = (e) => {
-      e.stopPropagation();
-      studyStartMode = "audio";
-      playAudio(card.audioUrl, card.id);
-      renderStudyCard();
-    };
-    studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
-    return;
   }
 
-  // 表面（日本語）
-  if (!studyShowBack && studyStartMode === "jp") {
-    studyCardEl.innerHTML = `
-      <p class="jpBig">${escapeHtml(card.jp)}</p>
-      <div class="tapHint">タップで裏面（英語＋IPA） / スワイプで判定</div>
-    `;
-    studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
-    return;
-  }
-
-  // 表面（音声スタート）
-  if (!studyShowBack && studyStartMode === "audio") {
-    studyCardEl.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <div style="font-size:12px; color: rgba(120,120,140,.95);">まず音声でスタート</div>
-        <button class="audioBtn" id="studyReplay" style="width:100%; padding:12px 14px; font-size:14px;">🔈 もう一度再生</button>
-        <button class="pillBtn" id="studyShowJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語を表示</button>
-        <div class="tapHint">（カード面タップでも日本語を表示）</div>
-      </div>
-    `;
-    document.getElementById("studyReplay").onclick = (e) => {
-      e.stopPropagation();
-      playAudio(card.audioUrl, card.id);
-    };
-    document.getElementById("studyShowJp").onclick = (e) => {
-      e.stopPropagation();
-      studyStartMode = "jp";
-      renderStudyCard();
-    };
-    studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
-    return;
-  }
-
-  // 裏面（英語＋IPA）
-  studyCardEl.innerHTML = `
-    <p class="enBig">${escapeHtml(card.en)}</p>
-    <p class="ipaBig">${escapeHtml(card.ipa)}</p>
-    <div class="tapHint">タップで表面へ戻る / スワイプで判定</div>
-  `;
   studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
 }
 
-function decideStudy(statusKey) {
+function decideStudy(statusKey){
   const card = studyDeck[studyIndex];
   if (!card) return;
 
@@ -577,26 +598,21 @@ function decideStudy(statusKey) {
 
   studyIndex += 1;
   studyShowBack = false;
-  studyStartMode = "start";
   renderStudyCard();
 }
 
-// study card tap behavior
+// tap behavior
 studyCardEl.addEventListener("click", () => {
   const card = studyDeck[studyIndex];
   if (!card) return;
 
-  // 未選択ならタップ無効
-  if (studyStartMode === "start") return;
-
-  // 音声スタート中はタップ＝日本語表示
-  if (!studyShowBack && studyStartMode === "audio") {
-    studyStartMode = "jp";
+  if (!studyShowBack && studyFrontMode === "audio") {
+    // audio front: tap => show jp (without flipping to back)
+    studyFrontMode = "jp";
     renderStudyCard();
     return;
   }
 
-  // 通常：表⇄裏
   studyShowBack = !studyShowBack;
   renderStudyCard();
 });
@@ -619,9 +635,6 @@ studyCardEl.addEventListener("pointerdown", (e) => {
   const card = studyDeck[studyIndex];
   if (!card) return;
 
-  // 開始選択中はスワイプさせない（誤操作防止）
-  if (studyStartMode === "start") return;
-
   dragging = true;
   sx = e.clientX;
   sy = e.clientY;
@@ -643,36 +656,46 @@ studyCardEl.addEventListener("pointerup", () => {
   if (!dragging) return;
   dragging = false;
 
-  const TH = 90; // threshold
-  if (dx > TH)  return decideStudy("known");       // right
-  if (dx < -TH) return decideStudy("unknown");     // left
-  if (dy < -TH) return decideStudy("ambiguous");   // up
+  const TH = 90;
+  if (dx > TH)  return decideStudy("known");
+  if (dx < -TH) return decideStudy("unknown");
+  if (dy < -TH) return decideStudy("ambiguous");
 
-  // reset
   studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
 });
 
 // =========================
+//  Events (top -> picker / list / study)
+// =========================
+pickerBackTopBtn.addEventListener("click", showTop);
+
+// =========================
 //  Load + Init
 // =========================
-async function loadCards() {
+async function loadCards(){
   const res = await fetch("./cards.json");
   if (!res.ok) throw new Error("cards.json が読み込めませんでした");
   CARDS = await res.json();
   buildThemes();
 }
 
-async function init() {
+async function init(){
   await loadCards();
 
-  renderPicker();
+  // restore last theme if possible
+  const last = loadText(STORAGE_KEY_LAST_THEME, "");
+  if (last && THEMES.some(t => t.themeKey === last)) currentThemeKey = last;
 
-  const last = localStorage.getItem(STORAGE_KEY_LAST_THEME);
-  if (last && THEMES.some(t => t.themeKey === last)) {
-    showTheme(last);
-  } else {
-    showPicker();
-  }
+  // initial: always top
+  showTop();
+
+  // wire list back
+  listBackTopBtn.addEventListener("click", showTop);
+
+  // top -> picker
+  goThemeSelectBtn.addEventListener("click", showPicker);
+
+  // top mode buttons already wired
 
   // Service worker
   if ("serviceWorker" in navigator) {
