@@ -88,6 +88,13 @@ function buildThemes() {
 function themeNameByKey(themeKey) {
   return (THEMES.find(t => t.themeKey === themeKey)?.themeName) || themeKey || "未選択";
 }
+function themeLabel(themeKey) {
+  // theme01 -> 01
+  const m = String(themeKey || "").match(/theme(\d+)/i);
+  const num = m ? String(m[1]).padStart(2, "0") : "";
+  const name = themeNameByKey(themeKey);
+  return num ? `${num} ${name}` : name;
+}
 function hasThemeSelected() {
   return !!currentThemeKey && THEMES.some(t => t.themeKey === currentThemeKey);
 }
@@ -158,35 +165,35 @@ function setTabActive(which) {
 function showTop() {
   hideAll();
   screenTop.classList.add("show");
-  subtitleEl.textContent = "トップ";
+  subtitleEl.textContent = "Practice your speech";
   setTabActive("top");
   renderTop();
 }
 function showListScreen() {
   hideAll();
   screenList.classList.add("show");
-  subtitleEl.textContent = "一覧";
+  subtitleEl.textContent = "List";
   setTabActive("list");
   renderList();
 }
 function showPicker() {
   hideAll();
   screenPicker.classList.add("show");
-  subtitleEl.textContent = "テーマ選択";
-  setTabActive("top"); // pickerはトップ側の流れ
+  subtitleEl.textContent = "Choose a theme";
+  setTabActive("top");
   renderPicker();
 }
 function showStudy() {
   if (!hasThemeSelected()) return;
   hideAll();
   screenStudy.classList.add("show");
-  subtitleEl.textContent = "スワイプ";
+  subtitleEl.textContent = ""; // ←「スワイプ」文字は出さない
   setTabActive("top");
 
   studyDeck = CARDS.filter(c => c.themeKey === currentThemeKey);
   studyIndex = 0;
   studyShowBack = false;
-  studyFrontMode = "start"; // ← 最初は選択画面
+  studyFrontMode = "start";
 
   renderStudyCard();
 }
@@ -397,16 +404,16 @@ function renderStudyCard() {
   const card = studyDeck[studyIndex];
   if (!card) {
     studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
-    studyCardEl.innerHTML = `<p class="enBig">終了！</p><p class="ipaBig">戻ってください</p>`;
+    studyCardEl.innerHTML = `<p class="enBig">Done!</p><p class="ipaBig">Back to Top</p>`;
     return;
   }
 
-  // 表面
   if (!studyShowBack) {
+    // start
     if (studyFrontMode === "start") {
       studyCardEl.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <div style="font-size:12px; color:rgba(120,120,140,.95);">どちらで確認する？</div>
+          <div style="font-size:12px; color:rgba(120,120,140,.95);">${escapeHtml(themeLabel(currentThemeKey))}</div>
           <button class="audioBtn" id="studyChooseAudio" style="width:100%; padding:12px 14px; font-size:14px;">🔈 音声再生</button>
           <button class="pillBtn" id="studyChooseJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語表示</button>
           <div class="tapHint">選んだ後：タップで英語＋IPA / スワイプで判定</div>
@@ -427,10 +434,11 @@ function renderStudyCard() {
       return;
     }
 
+    // audio front
     if (studyFrontMode === "audio") {
       studyCardEl.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <div style="font-size:12px; color:rgba(120,120,140,.95);">音声</div>
+          <div style="font-size:12px; color:rgba(120,120,140,.95);">${escapeHtml(themeLabel(currentThemeKey))}</div>
           <button class="audioBtn" id="studyReplay" style="width:100%; padding:12px 14px; font-size:14px;">🔈 再生</button>
           <button class="pillBtn" id="studyShowJp" style="width:100%; padding:12px 14px; font-size:14px;">日本語表示</button>
           <div class="tapHint">タップで英語＋IPA / スワイプで判定</div>
@@ -443,16 +451,19 @@ function renderStudyCard() {
       return;
     }
 
-    // jp
+    // jp front
     studyCardEl.innerHTML = `
-      <p class="jpBig">${escapeHtml(card.jp)}</p>
-      <div class="tapHint">タップで英語＋IPA / スワイプで判定</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:12px; color:rgba(120,120,140,.95);">${escapeHtml(themeLabel(currentThemeKey))}</div>
+        <p class="jpBig">${escapeHtml(card.jp)}</p>
+        <div class="tapHint">タップで英語＋IPA / スワイプで判定</div>
+      </div>
     `;
     studyCardEl.style.transform = "translate(0px,0px) rotate(0deg)";
     return;
   }
 
-  // 裏面
+  // back
   studyCardEl.innerHTML = `
     <p class="enBig">${escapeHtml(card.en)}</p>
     <p class="ipaBig">${escapeHtml(card.ipa)}</p>
@@ -485,7 +496,7 @@ function decideStudy(statusKey) {
   setStatus(card.id, statusKey);
   studyIndex += 1;
   studyShowBack = false;
-  studyFrontMode = "start"; // 次のカードはまた選択から
+  studyFrontMode = "start";
   renderStudyCard();
 }
 
@@ -554,16 +565,13 @@ async function init() {
   currentThemeKey = pickDefaultTheme();
   if (currentThemeKey) saveText(STORAGE_KEY_LAST_THEME, currentThemeKey);
 
-  // initial screen
   showTop();
 
-  // SW
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(console.warn);
   }
 }
 
-// top/list tabs + top actions
 function renderTop() {
   const ok = hasThemeSelected();
   selectedThemeText.textContent = ok ? themeNameByKey(currentThemeKey) : "未選択";
