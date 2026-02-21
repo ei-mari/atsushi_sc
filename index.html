@@ -312,11 +312,12 @@
 <body>
 <header>
   <h1>My Speech</h1>
- <div class="sub" id="subtitle">Practice your speech</div>
+  <div class="sub" id="subtitle">Practice your speech</div>
 
   <div class="tabsTop">
     <button class="tab active" id="tabTop">トップ</button>
     <button class="tab" id="tabList">一覧</button>
+    <button class="tab" id="tabSettings">設定</button>
   </div>
 </header>
 
@@ -330,6 +331,7 @@
         <button class="primaryBtn" id="goThemeSelectBtn">テーマ選択</button>
       </div>
       <div class="hint" id="topHint">テーマを選んでください。</div>
+      <div class="hint" id="todayCountText">今日の学習: 0枚</div>
     </div>
 
     <div class="panel">
@@ -366,6 +368,50 @@
       <tbody id="tbody"></tbody>
     </table>
   </main>
+</section>
+
+<!-- SETTINGS -->
+<section class="screen" id="screenSettings">
+  <div class="wrap">
+    <div class="panel">
+      <div class="label">学習設定</div>
+
+      <div class="row" style="margin-top:6px;">
+        <div style="min-width:180px; font-size:13px; color:var(--muted);">スワイプ出題枚数</div>
+        <input class="search" id="deckSizeInput" type="number" min="1" max="200" step="1" style="max-width:180px;" />
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div style="min-width:180px; font-size:13px; color:var(--muted);">✓の再出題待ち（日）</div>
+        <input class="search" id="cooldownDaysInput" type="number" min="0" max="365" step="1" style="max-width:180px;" />
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div style="min-width:180px; font-size:13px; color:var(--muted);">出題フィルタ</div>
+        <select class="search" id="filterModeSelect" style="max-width:260px;">
+          <option value="unknown">✕だけ</option>
+          <option value="ambiguous">〜だけ</option>
+          <option value="unknown_ambiguous">✕＋〜</option>
+          <option value="all">すべて（✓は待ち設定あり）</option>
+        </select>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <span class="badge mono" id="settingsHintBadge">defaults</span>
+        <button class="primaryBtn" id="saveSettingsBtn">保存</button>
+      </div>
+
+      <div class="hint">
+        ✓は「覚えた」にした日から、待ち日数が過ぎるまで出題されません（0なら無効）。
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">今日の学習（テーマ別）</div>
+      <div class="hint" id="todayStatsDate">-</div>
+      <div id="todayStatsList" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+  </div>
 </section>
 
 <!-- STUDY -->
