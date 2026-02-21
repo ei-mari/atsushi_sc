@@ -1,6 +1,17 @@
-const STORAGE_KEY_STATUS     = "cardapp_status_v1";
-const STORAGE_KEY_LAST_THEME = "cardapp_last_theme_v1";
-const STORAGE_KEY_RECENT     = "cardapp_recent_themes_v1";
+const STORAGE_KEY_STATUS          = "cardapp_status_v1";
+const STORAGE_KEY_LAST_THEME      = "cardapp_last_theme_v1";
+const STORAGE_KEY_RECENT          = "cardapp_recent_themes_v1";
+
+// settings
+const STORAGE_KEY_DECK_SIZE       = "cardapp_deck_size_v1";              // default 10
+const STORAGE_KEY_COOLDOWN_DAYS   = "cardapp_known_cooldown_days_v1";    // default 3
+const STORAGE_KEY_FILTER_MODE     = "cardapp_filter_mode_v1";            // default unknown_ambiguous
+
+// srs + today counter
+const STORAGE_KEY_KNOWN_AT        = "cardapp_known_at_v1";               // { [id]: epochMs }
+const STORAGE_KEY_TODAY_STATS     = "cardapp_today_stats_v1";            // { date, total, byTheme }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const STATUSES = [
   { key: "unknown",   label: "覚えていない" },
@@ -45,23 +56,125 @@ function loadText(key, fallback) {
 }
 function saveText(key, val) { localStorage.setItem(key, val); }
 
+function clampInt(v, min, max, fallback) {
+  const n = parseInt(v, 10);
+  if (Number.isNaN(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function statusLabel(k) {
   const s = STATUSES.find(x => x.key === k);
   return s ? s.label : k;
 }
+
+// ---------- settings getters/setters ----------
+function getDeckSize() {
+  const raw = loadText(STORAGE_KEY_DECK_SIZE, "10");
+  return clampInt(raw, 1, 200, 10);
+}
+function setDeckSize(n) {
+  saveText(STORAGE_KEY_DECK_SIZE, String(clampInt(n, 1, 200, 10)));
+}
+function getCooldownDays() {
+  const raw = loadText(STORAGE_KEY_COOLDOWN_DAYS, "3");
+  return clampInt(raw, 0, 365, 3);
+}
+function setCooldownDays(n) {
+  saveText(STORAGE_KEY_COOLDOWN_DAYS, String(clampInt(n, 0, 365, 3)));
+}
+function getFilterMode() {
+  const v = loadText(STORAGE_KEY_FILTER_MODE, "unknown_ambiguous");
+  const ok = ["unknown","ambiguous","unknown_ambiguous","all"].includes(v);
+  return ok ? v : "unknown_ambiguous";
+}
+function setFilterMode(v) {
+  const ok = ["unknown","ambiguous","unknown_ambiguous","all"].includes(v);
+  saveText(STORAGE_KEY_FILTER_MODE, ok ? v : "unknown_ambiguous");
+}
+
+// ---------- SRS (known cooldown) ----------
+function getKnownAtMap() {
+  return loadJSON(STORAGE_KEY_KNOWN_AT, {});
+}
+function setKnownAt(id, ms) {
+  const map = getKnownAtMap();
+  map[id] = ms;
+  saveJSON(STORAGE_KEY_KNOWN_AT, map);
+}
+function clearKnownAt(id) {
+  const map = getKnownAtMap();
+  if (map[id] != null) delete map[id];
+  saveJSON(STORAGE_KEY_KNOWN_AT, map);
+}
+function isKnownCooling(id) {
+  const days = getCooldownDays();
+  if (days <= 0) return false;
+  const map = getKnownAtMap();
+  const knownAt = map[id];
+  if (!knownAt) return false; // 旧データ等は「昔」とみなして出題可
+  return (Date.now() - knownAt) < (days * DAY_MS);
+}
+
+// ---------- Today counter ----------
+function todayKeyLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${dd}`;
+}
+function ensureTodayStats() {
+  const t = todayKeyLocal();
+  const stats = loadJSON(STORAGE_KEY_TODAY_STATS, { date: t, total: 0, byTheme: {} });
+  if (stats.date !== t) {
+    const fresh = { date: t, total: 0, byTheme: {} };
+    saveJSON(STORAGE_KEY_TODAY_STATS, fresh);
+    return fresh;
+  }
+  if (!stats.byTheme) stats.byTheme = {};
+  if (typeof stats.total !== "number") stats.total = 0;
+  return stats;
+}
+function incrementToday(themeKey) {
+  const stats = ensureTodayStats();
+  stats.total += 1;
+  stats.byTheme[themeKey] = (stats.byTheme[themeKey] || 0) + 1;
+  saveJSON(STORAGE_KEY_TODAY_STATS, stats);
+}
+function getTodayCount(themeKey) {
+  const stats = ensureTodayStats();
+  return stats.byTheme?.[themeKey] || 0;
+}
+
+// ---------- status ----------
 function getStatus(id) {
   const map = loadJSON(STORAGE_KEY_STATUS, {});
   return map[id] || "unknown";
 }
-function setStatus(id, status) {
+function setStatus(id, status, { silentStudy = false } = {}) {
   const map = loadJSON(STORAGE_KEY_STATUS, {});
   map[id] = status;
   saveJSON(STORAGE_KEY_STATUS, map);
 
+  // SRS: knownにした瞬間を記録 / known以外はクリア
+  if (status === "known") setKnownAt(id, Date.now());
+  else clearKnownAt(id);
+
   renderList();
   renderModal();
-  if (screenStudy.classList.contains("show")) renderStudyCard();
+  if (!silentStudy && screenStudy.classList.contains("show")) renderStudyCard();
+  if (screenTop.classList.contains("show")) renderTop();
+  if (screenSettings.classList.contains("show")) renderSettings();
 }
+
 function playAudio(url, cardId, { silent = false } = {}) {
   if (!url) { if (!silent) alert("audioUrl が未設定です"); return; }
 
@@ -74,6 +187,7 @@ function playAudio(url, cardId, { silent = false } = {}) {
   audio.play().catch(() => { if (!silent) alert("音声を再生できませんでした"); });
 }
 
+// ---------- themes ----------
 function buildThemes() {
   const map = new Map();
   for (const c of CARDS) {
@@ -89,7 +203,6 @@ function themeNameByKey(themeKey) {
   return (THEMES.find(t => t.themeKey === themeKey)?.themeName) || themeKey || "未選択";
 }
 function themeLabel(themeKey) {
-  // theme01 -> 01
   const m = String(themeKey || "").match(/theme(\d+)/i);
   const num = m ? String(m[1]).padStart(2, "0") : "";
   const name = themeNameByKey(themeKey);
@@ -108,20 +221,23 @@ function pushRecent(themeKey) {
 const subtitleEl = document.getElementById("subtitle");
 
 // tabs
-const tabTopBtn  = document.getElementById("tabTop");
-const tabListBtn = document.getElementById("tabList");
+const tabTopBtn       = document.getElementById("tabTop");
+const tabListBtn      = document.getElementById("tabList");
+const tabSettingsBtn  = document.getElementById("tabSettings");
 
 // screens
-const screenTop    = document.getElementById("screenTop");
-const screenPicker = document.getElementById("screenPicker");
-const screenList   = document.getElementById("screenList");
-const screenStudy  = document.getElementById("screenStudy");
+const screenTop       = document.getElementById("screenTop");
+const screenPicker    = document.getElementById("screenPicker");
+const screenList      = document.getElementById("screenList");
+const screenStudy     = document.getElementById("screenStudy");
+const screenSettings  = document.getElementById("screenSettings");
 
 // top
 const selectedThemeText = document.getElementById("selectedThemeText");
 const goThemeSelectBtn  = document.getElementById("goThemeSelectBtn");
 const startSwipeBtn     = document.getElementById("startSwipeBtn");
 const topHint           = document.getElementById("topHint");
+const todayCountText    = document.getElementById("todayCountText");
 
 // picker
 const pickerBackBtn = document.getElementById("pickerBackBtn");
@@ -151,16 +267,27 @@ const actionUnknown  = document.getElementById("actionUnknown");
 const actionAmbiguous= document.getElementById("actionAmbiguous");
 const actionKnown    = document.getElementById("actionKnown");
 
+// settings
+const deckSizeInput     = document.getElementById("deckSizeInput");
+const cooldownDaysInput = document.getElementById("cooldownDaysInput");
+const filterModeSelect  = document.getElementById("filterModeSelect");
+const saveSettingsBtn   = document.getElementById("saveSettingsBtn");
+const settingsHintBadge = document.getElementById("settingsHintBadge");
+const todayStatsDate    = document.getElementById("todayStatsDate");
+const todayStatsList    = document.getElementById("todayStatsList");
+
 // ---------- navigation ----------
 function hideAll() {
   screenTop.classList.remove("show");
   screenPicker.classList.remove("show");
   screenList.classList.remove("show");
   screenStudy.classList.remove("show");
+  screenSettings.classList.remove("show");
 }
 function setTabActive(which) {
   tabTopBtn.classList.toggle("active", which === "top");
   tabListBtn.classList.toggle("active", which === "list");
+  tabSettingsBtn.classList.toggle("active", which === "settings");
 }
 function showTop() {
   hideAll();
@@ -183,14 +310,49 @@ function showPicker() {
   setTabActive("top");
   renderPicker();
 }
+function showSettings() {
+  hideAll();
+  screenSettings.classList.add("show");
+  subtitleEl.textContent = "Settings";
+  setTabActive("settings");
+  renderSettings();
+}
 function showStudy() {
   if (!hasThemeSelected()) return;
   hideAll();
   screenStudy.classList.add("show");
-  subtitleEl.textContent = ""; // ←「スワイプ」文字は出さない
+  subtitleEl.textContent = "";
   setTabActive("top");
 
-  studyDeck = CARDS.filter(c => c.themeKey === currentThemeKey);
+  const all = CARDS.filter(c => c.themeKey === currentThemeKey);
+
+  // フィルタ適用（✓はクールダウン中は除外）
+  const mode = getFilterMode();
+  const eligible = all.filter(c => {
+    const st = getStatus(c.id);
+    if (st === "known" && isKnownCooling(c.id)) return false;
+
+    if (mode === "unknown") return st === "unknown";
+    if (mode === "ambiguous") return st === "ambiguous";
+    if (mode === "unknown_ambiguous") return st !== "known";
+    return true; // all
+  });
+
+  // Anki風：unknown → ambiguous → known の優先順で混ぜる（各バケットはシャッフル）
+  const bUnknown = [];
+  const bAmbig   = [];
+  const bKnown   = [];
+  for (const c of eligible) {
+    const st = getStatus(c.id);
+    if (st === "unknown") bUnknown.push(c);
+    else if (st === "ambiguous") bAmbig.push(c);
+    else bKnown.push(c);
+  }
+
+  const ordered = [...shuffle(bUnknown), ...shuffle(bAmbig), ...shuffle(bKnown)];
+  const size = getDeckSize();
+  studyDeck = ordered.slice(0, Math.min(size, ordered.length));
+
   studyIndex = 0;
   studyShowBack = false;
   studyFrontMode = "start";
@@ -201,6 +363,7 @@ function showStudy() {
 // tab clicks
 tabTopBtn.addEventListener("click", showTop);
 tabListBtn.addEventListener("click", showListScreen);
+tabSettingsBtn.addEventListener("click", showSettings);
 
 // ---------- top ----------
 function renderTop() {
@@ -209,6 +372,12 @@ function renderTop() {
   startSwipeBtn.disabled = !ok;
   startSwipeBtn.style.opacity = ok ? "1" : ".45";
   topHint.textContent = ok ? "開始を押すとスワイプが始まります。" : "テーマを選んでください。";
+
+  if (todayCountText) {
+    todayCountText.textContent = ok
+      ? `今日の学習: ${getTodayCount(currentThemeKey)}枚`
+      : "今日の学習: -";
+  }
 }
 goThemeSelectBtn.addEventListener("click", showPicker);
 startSwipeBtn.addEventListener("click", showStudy);
@@ -393,6 +562,53 @@ function renderModal() {
   `;
 }
 
+// ---------- settings ----------
+function renderSettings() {
+  deckSizeInput.value = String(getDeckSize());
+  cooldownDaysInput.value = String(getCooldownDays());
+  filterModeSelect.value = getFilterMode();
+
+  if (settingsHintBadge) {
+    settingsHintBadge.textContent = `deck=${getDeckSize()} / wait=${getCooldownDays()}d / filter=${getFilterMode()}`;
+  }
+
+  const stats = ensureTodayStats();
+  if (todayStatsDate) todayStatsDate.textContent = `日付: ${stats.date}（合計 ${stats.total}）`;
+
+  if (todayStatsList) {
+    todayStatsList.innerHTML = "";
+    const entries = Object.entries(stats.byTheme || {})
+      .filter(([,cnt]) => (cnt || 0) > 0)
+      .sort((a,b) => themeNameByKey(a[0]).localeCompare(themeNameByKey(b[0]), "ja"));
+
+    if (entries.length === 0) {
+      todayStatsList.innerHTML = `<div style="color:rgba(120,120,140,.95);">（まだありません）</div>`;
+      return;
+    }
+
+    for (const [themeKey, cnt] of entries) {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.gap = "10px";
+
+      row.innerHTML = `
+        <div style="font-size:14px; letter-spacing:-0.01em;">${escapeHtml(themeNameByKey(themeKey))}</div>
+        <span class="badge mono">${cnt}枚</span>
+      `;
+      todayStatsList.appendChild(row);
+    }
+  }
+}
+saveSettingsBtn.addEventListener("click", () => {
+  setDeckSize(deckSizeInput.value);
+  setCooldownDays(cooldownDaysInput.value);
+  setFilterMode(filterModeSelect.value);
+  renderSettings();
+  alert("保存しました");
+});
+
 // ---------- study ----------
 studyBackBtn.addEventListener("click", showTop);
 
@@ -493,7 +709,13 @@ studyAudioBtn.addEventListener("click", (e) => {
 function decideStudy(statusKey) {
   const card = studyDeck[studyIndex];
   if (!card) return;
-  setStatus(card.id, statusKey);
+
+  // 今日の学習カウント（テーマ別）
+  incrementToday(card.themeKey);
+
+  // 先にステータス反映（Study描画はここでは抑制）
+  setStatus(card.id, statusKey, { silentStudy: true });
+
   studyIndex += 1;
   studyShowBack = false;
   studyFrontMode = "start";
@@ -565,19 +787,14 @@ async function init() {
   currentThemeKey = pickDefaultTheme();
   if (currentThemeKey) saveText(STORAGE_KEY_LAST_THEME, currentThemeKey);
 
+  // 今日の統計を初期化（日付が変わってたらリセット）
+  ensureTodayStats();
+
   showTop();
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(console.warn);
   }
-}
-
-function renderTop() {
-  const ok = hasThemeSelected();
-  selectedThemeText.textContent = ok ? themeNameByKey(currentThemeKey) : "未選択";
-  startSwipeBtn.disabled = !ok;
-  startSwipeBtn.style.opacity = ok ? "1" : ".45";
-  topHint.textContent = ok ? "開始を押すとスワイプが始まります。" : "テーマを選んでください。";
 }
 
 init().catch((e) => {
