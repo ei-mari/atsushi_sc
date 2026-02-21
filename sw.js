@@ -1,5 +1,5 @@
-// 反映されない時は v4→v5 に増やす
-const CACHE_NAME = "cardapp-cache-v8";
+// 反映されない時は v1→v2→v3… と増やす
+const CACHE_NAME = "cardapp-cache-v9";
 
 const APP_SHELL = [
   "./",
@@ -9,9 +9,7 @@ const APP_SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((c) => c.addAll(APP_SHELL))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(APP_SHELL)));
   self.skipWaiting();
 });
 
@@ -26,11 +24,9 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
-
       return fetch(req).then((res) => {
         const copy = res.clone();
         caches.open(CACHE_NAME).then((c) => c.put(req, copy));
