@@ -3,12 +3,93 @@
     "themeKey": "theme01",
     "themeName": "自己紹介",
     "id": "theme01-1-1",
-    "jp": "私はトヨタで自動車の内装デザイナーとして働いており、この分野で30年以上経験があります。",
-    "en": "I work at Toyota as an automotive interior designer, and I’ve been working in this field for over 30 years.",
-    "ipa": "/aɪ wɝk ət təˈjoʊtə .../",
-    "audioUrl": "audio/theme01/1-1.mp3"
+    "audioUrl": "audio/theme01/1-1.mp3",
+    "jp": "私はトヨタで自動車の内装デザイナーとして働いていて、この分野で30年以上働いています。",
+    "en": "I work at Toyota as an automotive interior designer, and I've been working in this field for over 30 years.",
+    "ipa": "/aɪ wɝk ət təˈjoʊtə æz ən ˌɔtəˈmoʊtɪv ɪnˈtɪriər dɪˈzaɪnər, ænd aɪv bɪn ˈwɝkɪŋ ɪn ðɪs fiːld fɔr ˈoʊvər ˈθɝti jɪrz./"
   },
   {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-2",
+    "audioUrl": "audio/theme01/1-2.mp3",
+    "jp": "以前はミシガン州に住んでいて、Toyota Technical Center North Americaで働いていました。",
+    "en": "I used to live in the state of Michigan, where I worked at Toyota Technical Center North America.",
+    "ipa": "/aɪ juːst tə lɪv ɪn ðə steɪt əv ˈmɪʃɪɡən, wɛr aɪ wɝkt ət təˈjoʊtə ˈtɛknɪkəl ˈsɛntɚ nɔrθ əˈmɛrɪkə./"
+  },
+  {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-3",
+    "audioUrl": "audio/theme01/1-3.mp3",
+    "jp": "15年ほど前に名古屋へ戻りました。",
+    "en": "I moved back to Nagoya about fifteen years ago.",
+    "ipa": "/aɪ muːvd bæk tə nəˈɡɔɪə əˈbaʊt ˌfɪfˈtiːn jɪrz əˈɡoʊ./"
+  },
+  {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-4",
+    "audioUrl": "audio/theme01/1-4.mp3",
+    "jp": "懐かしい車や古いアメリカ家具、中古の服、機械式腕時計などのヴィンテージ品が大好きです。",
+    "en": "I love vintage things like nostalgic cars, old American furniture, used clothing, and mechanical watches.",
+    "ipa": "/aɪ lʌv ˈvɪntɪdʒ θɪŋz laɪk nɑˈstældʒɪk kɑrz, oʊld əˈmɛrɪkən ˈfɝnɪtʃɚ, juːzd ˈkloʊðɪŋ, ænd məˈkænɪkəl ˈwɑtʃɪz./"
+  },
+  {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-5",
+    "audioUrl": "audio/theme01/1-5.mp3",
+    "jp": "中日ドラゴンズの大ファンで、応援のために年に30試合くらい観に行きます。",
+    "en": "I'm also a big fan of the Chunichi Dragons and go to around 30 games a year to cheer them on.",
+    "ipa": "/aɪm ˈɔlsoʊ ə bɪɡ fæn əv ðə tʃuːˈniːtʃi ˈdræɡənz ænd ɡoʊ tə əˈraʊnd ˈθɝti ɡeɪmz ə jɪr tə tʃɪr ðɛm ɑn./"
+  },
+  {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-6",
+    "audioUrl": "audio/theme01/1-6.mp3",
+    "jp": "休みの日は、友だちと田舎で100kmのロードバイク旅に出ることがよくあります。",
+    "en": "On my days off, I often go on 100 km road bike trips in the countryside with my friends.",
+    "ipa": "/ɑn maɪ deɪz ɔf, aɪ ˈɔfən ɡoʊ ɑn wʌn ˈhʌndrəd kɪˈlɑmɪtɚ roʊd baɪk trɪps ɪn ðə ˈkʌntriˌsaɪd wɪð maɪ frɛndz./"
+  },
+  {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-7",
+    "audioUrl": "audio/theme01/1-7.mp3",
+    "jp": "嫌なことが起きても前向きでいられるのが得意です。",
+    "en": "I'm good at staying positive, even when something bad happens.",
+    "ipa": "/aɪm ɡʊd ət ˈsteɪɪŋ ˈpɑzətɪv, ˈivən wɛn ˈsʌmθɪŋ bæd ˈhæpənz./"
+  },
+  {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-8",
+    "audioUrl": "audio/theme01/1-8.mp3",
+    "jp": "どんな状況でも、より良い何かのチャンスに変えられるといつも信じています。",
+    "en": "I always believe any situation can turn into an opportunity for something better.",
+    "ipa": "/aɪ ˈɔlweɪz bɪˈliːv ˈɛni ˌsɪtʃuˈeɪʃən kæn tɝn ˈɪntuː ən ˌɑpɚˈtuːnɪti fɔr ˈsʌmθɪŋ ˈbɛtɚ./"
+  },
+  {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-9",
+    "audioUrl": "audio/theme01/1-9.mp3",
+    "jp": "一方で、ひとりだと集中して作業を続けるのはあまり得意ではありません。",
+    "en": "On the other hand, I'm not very good at concentrating and staying on task by myself.",
+    "ipa": "/ɑn ði ˈʌðɚ hænd, aɪm nɑt ˈvɛri ɡʊd ət ˈkɑnsənˌtreɪtɪŋ ænd ˈsteɪɪŋ ɑn tæsk baɪ maɪˈsɛlf./"
+  },
+  {
+    "themeKey": "theme01",
+    "themeName": "自己紹介",
+    "id": "theme01-1-10",
+    "audioUrl": "audio/theme01/1-10.mp3",
+    "jp": "同僚とチームで新しいアイデアを出し合いながら、課題に挑むほうが好きです。",
+    "en": "I prefer to take on challenges as part of a team with my colleagues, coming up with new ideas together.",
+    "ipa": "/aɪ prɪˈfɝ tə teɪk ɑn ˈtʃælɪndʒɪz æz pɑrt əv ə tim wɪð maɪ ˈkɑliːɡz, ˈkʌmɪŋ ʌp wɪð nu aɪˈdiːəz təˈɡɛðɚ./"
+  }
+ {
     "themeKey": "theme02",
     "themeName": "朝と夜の習慣",
     "id": "theme02-2-1",
