@@ -172,3 +172,29 @@ tbody td:last-child{
   font-size: 18px;
 }
 .actionBtn:active{ transform: scale(.98); }
+
+/* ---- Force Light Theme (always) ---- */
+:root{
+  --bg: #ffffff;
+  --card: #ffffff;
+  --cardSolid: #ffffff;
+  --text: #0b0f19;
+  --muted: rgba(11,15,25,.58);
+  --border: rgba(15,23,42,.10);
+  --shadow: 0 10px 30px rgba(2,6,23,.10);
+}
+
+body{
+  background: #ffffff !important;
+  color: var(--text);
+}
+
+header{
+  background: rgba(255,255,255,.92) !important;
+}
+
+.tab.active, .primaryBtn{
+  background: #0b0f19 !important;
+  color: #fff !important;
+  border-color: #0b0f19 !important;
+}
