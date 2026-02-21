@@ -1,5 +1,5 @@
 // 更新したのに見た目が変わらない時は v2→v3 に増やす
-const CACHE_NAME = "cardapp-cache-v2";
+const CACHE_NAME = "cardapp-cache-v3";
 
 const APP_SHELL = [
   "./",
